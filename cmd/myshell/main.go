@@ -11,26 +11,40 @@ import (
 var _ = fmt.Fprint
 
 func main() {
-	fmt.Fprint(os.Stdout, "$ ")
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Fprint(os.Stdout, "$ ")
 
-	input, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading input: ", err)
-		os.Exit(1)
+		if !scanner.Scan() {
+			break
+		}
+
+		input := strings.TrimSpace(scanner.Text())
+		if input == "" {
+			continue
+		}
+
+		if input == "exit" {
+			break
+		}
+
+		parts := strings.Fields(input)
+		cmdName := parts[0]
+		args := parts[1:]
+
+		_, err := exec.LookPath(cmdName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "command not found: %s\n", cmdName)
+			continue
+		}
+
+		cmd := exec.Command(cmdName, args...)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		}
+
 	}
-
-	command := strings.TrimSpace(input)
-	parts := strings.Fields(command)
-	if len(parts) == 0 {
-		os.Exit(0)
-	}
-
-	cmdName := parts[0]
-	_, err = exec.LookPath(cmdName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: command not found\n", cmdName)
-		os.Exit(1)
-	}
-
-	os.Exit(0)
 }
