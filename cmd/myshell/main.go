@@ -53,11 +53,16 @@ func main() {
 		}
 
 		if cmdName == "type" {
+			if len(args) == 0 {
+				fmt.Fprintln(os.Stderr, "type: missing argument")
+				continue
+			}
+
 			if builtinMap[args[0]] {
 				fmt.Println(args[0], "is a shell builtin")
 				continue
 			} else {
-				fmt.Fprintf(os.Stderr, "%s: not found\n", args[1])
+				fmt.Fprintf(os.Stderr, "%s: not found\n", args[0])
 			}
 		}
 
