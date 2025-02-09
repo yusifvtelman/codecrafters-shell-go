@@ -9,6 +9,12 @@ import (
 )
 
 func main() {
+	builtin := []string{"exit", "echo", "type"}
+	builtinMap := make(map[string]bool)
+	for _, b := range builtin {
+		builtinMap[b] = true
+	}
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
@@ -44,6 +50,15 @@ func main() {
 		if cmdName == "echo" {
 			fmt.Println(strings.Join(args, " "))
 			continue
+		}
+
+		if cmdName == "type" {
+			if builtinMap[args[0]] {
+				fmt.Println(args[0], "is a shell builtin")
+				continue
+			} else {
+				fmt.Fprintf(os.Stderr, "%s: not found\n", args[1])
+			}
 		}
 
 		path, err := exec.LookPath(cmdName)
