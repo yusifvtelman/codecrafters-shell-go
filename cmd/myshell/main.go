@@ -41,6 +41,11 @@ func main() {
 			os.Exit(exitCode)
 		}
 
+		if cmdName == "echo" {
+			fmt.Println(strings.Join(args, " "))
+			continue
+		}
+
 		path, err := exec.LookPath(cmdName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: command not found\n", cmdName)
