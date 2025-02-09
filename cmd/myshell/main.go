@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-var _ = fmt.Fprint
-
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
@@ -24,27 +22,38 @@ func main() {
 			continue
 		}
 
-		if input == "exit" {
-			break
+		parts := strings.Fields(input)
+		if len(parts) == 0 {
+			continue
 		}
 
-		parts := strings.Fields(input)
 		cmdName := parts[0]
 		args := parts[1:]
 
-		_, err := exec.LookPath(cmdName)
+		if cmdName == "exit" {
+			exitCode := 0
+			if len(args) > 0 {
+				_, err := fmt.Sscanf(args[0], "%d", &exitCode)
+				if err != nil {
+					exitCode = 0
+				}
+			}
+			os.Exit(exitCode)
+		}
+
+		path, err := exec.LookPath(cmdName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: command not found\n", cmdName)
 			continue
 		}
 
-		cmd := exec.Command(cmdName, args...)
+		cmd := exec.Command(path, args...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 
 		if err := cmd.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		}
-
 	}
 }
