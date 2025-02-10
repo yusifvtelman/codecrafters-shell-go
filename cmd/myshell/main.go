@@ -84,7 +84,9 @@ func main() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
-		if err := cmd.Run(); err != nil {
+		err = cmd.Run()
+
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		}
 	}
