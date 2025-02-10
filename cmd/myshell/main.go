@@ -60,9 +60,16 @@ func main() {
 
 			if builtinMap[args[0]] {
 				fmt.Println(args[0], "is a shell builtin")
-			} else {
-				fmt.Fprintf(os.Stderr, "%s: not found\n", args[0])
+				continue
 			}
+
+			path, err := exec.LookPath(args[0])
+			if err == nil {
+				fmt.Printf("%s is %s\n", args[0], path)
+				continue
+			}
+
+			fmt.Printf("%s not found\n", args[0])
 			continue
 		}
 
