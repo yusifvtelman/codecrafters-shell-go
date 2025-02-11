@@ -84,6 +84,19 @@ func main() {
 			continue
 		}
 
+		if cmdName == "cd" {
+			if len(args) == 0 {
+				fmt.Fprintln(os.Stderr, "cd: missing argument")
+				continue
+			}
+
+			err := os.Chdir(args[0])
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+			continue
+		}
+
 		path, err := exec.LookPath(cmdName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: command not found\n", cmdName)
