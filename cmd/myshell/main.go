@@ -81,6 +81,7 @@ func main() {
 				fmt.Println(err)
 			}
 			fmt.Println(dir)
+			continue
 		}
 
 		path, err := exec.LookPath(cmdName)
