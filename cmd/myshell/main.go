@@ -90,6 +90,11 @@ func main() {
 				continue
 			}
 
+			if args[0] == "~" {
+				os.Chdir(os.Getenv("HOME"))
+				continue
+			}
+
 			err := os.Chdir(args[0])
 			if err != nil {
 				if os.IsNotExist(err) {
