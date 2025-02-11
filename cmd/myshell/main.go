@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	builtin := []string{"exit", "echo", "type", "pwd"}
+	builtin := []string{"exit", "echo", "type", "pwd", "cd"}
 	builtinMap := make(map[string]bool)
 	for _, b := range builtin {
 		builtinMap[b] = true
