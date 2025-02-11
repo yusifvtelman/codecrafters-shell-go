@@ -80,6 +80,7 @@ func main() {
 		}
 
 		cmd := exec.Command(path, args...)
+		cmd.Args[0] = cmdName
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
