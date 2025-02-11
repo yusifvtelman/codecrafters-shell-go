@@ -79,7 +79,7 @@ func main() {
 			continue
 		}
 
-		cmd := exec.Command(path, args...)
+		cmd := exec.Command(path, append([]string{cmdName}, args...)...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -87,7 +87,7 @@ func main() {
 		err = cmd.Run()
 
 		if err != nil {
-			fmt.Printf("%s: command not found\n", path)
+			fmt.Printf("%s: command not found\n", cmdName)
 		}
 	}
 }
