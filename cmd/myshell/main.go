@@ -91,8 +91,7 @@ func main() {
 			}
 
 			if args[0] == "~" {
-				os.Chdir(os.Getenv("HOME"))
-				continue
+				args[0] = os.Getenv("HOME")
 			}
 
 			err := os.Chdir(args[0])
