@@ -36,6 +36,8 @@ func main() {
 		cmdName := parts[0]
 		args := parts[1:]
 
+		// If i Swich case ile değiştir.
+
 		if cmdName == "exit" {
 			exitCode := 0
 			if len(args) > 0 {
@@ -73,6 +75,14 @@ func main() {
 			continue
 		}
 
+		if cmdName == "pwd" {
+			dir, err := os.Getwd()
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println(dir)
+		}
+
 		path, err := exec.LookPath(cmdName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: command not found\n", cmdName)
@@ -91,4 +101,8 @@ func main() {
 			fmt.Printf("%s: command not found\n", cmdName)
 		}
 	}
+}
+
+func exit() {
+	os.Exit(0)
 }
