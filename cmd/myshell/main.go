@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"unicode"
 )
 
 func main() {
@@ -18,32 +19,26 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
-
 		if !scanner.Scan() {
 			break
 		}
+		line := scanner.Text()
+		tokens := tokenize(line)
 
-		input := strings.TrimSpace(scanner.Text())
-		if input == "" {
+		if len(tokens) == 0 {
 			continue
 		}
 
-		parts := strings.Fields(input)
-		if len(parts) == 0 {
-			continue
-		}
-
-		cmdName := parts[0]
-		args := parts[1:]
-
-		// If i Swich case ile değiştir.
+		cmdName := tokens[0]
+		args := tokens[1:]
 
 		if cmdName == "exit" {
 			exitCode := 0
 			if len(args) > 0 {
 				_, err := fmt.Sscanf(args[0], "%d", &exitCode)
 				if err != nil {
-					exitCode = 0
+					fmt.Fprintf(os.Stderr, "exit: %s: numeric argument required\n", args[0])
+					exitCode = 1
 				}
 			}
 			os.Exit(exitCode)
@@ -90,17 +85,26 @@ func main() {
 				continue
 			}
 
-			if args[0] == "~" {
-				args[0] = os.Getenv("HOME")
+			dir := args[0]
+			if strings.HasPrefix(dir, "~/") {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "cd:", err)
+					continue
+				}
+				dir = home + dir[1:]
+			} else if dir == "~" {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "cd:", err)
+					continue
+				}
+				dir = home
 			}
 
-			err := os.Chdir(args[0])
+			err := os.Chdir(dir)
 			if err != nil {
-				if os.IsNotExist(err) {
-					fmt.Fprintf(os.Stderr, "cd: %s: No such file or directory\n", args[0])
-				} else {
-					fmt.Fprintf(os.Stderr, "cd: %s: %v\n", args[0], err)
-				}
+				fmt.Fprintf(os.Stderr, "cd: %v\n", err)
 			}
 			continue
 		}
@@ -120,11 +124,43 @@ func main() {
 		err = cmd.Run()
 
 		if err != nil {
-			fmt.Printf("%s: command not found\n", cmdName)
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				os.Exit(exitErr.ExitCode())
+			}
+			os.Exit(1)
 		}
 	}
 }
 
-func exit() {
-	os.Exit(0)
+func tokenize(input string) []string {
+	var tokens []string
+	var currentToken []rune
+	inSingleQuote := false
+
+	for _, r := range input {
+		if inSingleQuote {
+			if r == '\'' {
+				inSingleQuote = false
+			} else {
+				currentToken = append(currentToken, r)
+			}
+		} else {
+			if r == '\'' {
+				inSingleQuote = true
+			} else if unicode.IsSpace(r) {
+				if len(currentToken) > 0 {
+					tokens = append(tokens, string(currentToken))
+					currentToken = nil
+				}
+			} else {
+				currentToken = append(currentToken, r)
+			}
+		}
+	}
+
+	if len(currentToken) > 0 {
+		tokens = append(tokens, string(currentToken))
+	}
+
+	return tokens
 }
