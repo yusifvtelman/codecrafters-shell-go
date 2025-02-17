@@ -104,7 +104,11 @@ func main() {
 
 			err := os.Chdir(dir)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "cd: %s\n", strings.TrimPrefix(err.Error(), "chdir "))
+				if os.IsNotExist(err) {
+					fmt.Fprintf(os.Stderr, "cd: %s: No such file or directory\n", args[0])
+				} else {
+					fmt.Fprintf(os.Stderr, "cd: %s: %v\n", args[0], err)
+				}
 			}
 			continue
 		}
