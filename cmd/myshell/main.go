@@ -104,7 +104,7 @@ func main() {
 
 			err := os.Chdir(dir)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "cd: %v\n", err)
+				fmt.Fprintf(os.Stderr, "cd: %s\n", strings.TrimPrefix(err.Error(), "chdir "))
 			}
 			continue
 		}
