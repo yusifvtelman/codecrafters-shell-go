@@ -174,6 +174,8 @@ func tokenize(input string) []string {
 			if r == '\'' {
 				inSingleQuote = true
 			} else if r == '\\' {
+				tokens = append(tokens, string(currentToken))
+				currentToken = nil
 				escapeNext = true
 			} else if r == '"' {
 				inDoubleQuote = true
