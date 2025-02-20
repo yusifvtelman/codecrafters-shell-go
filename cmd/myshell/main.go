@@ -144,25 +144,34 @@ func tokenize(input string) []string {
 	escapeNext := false
 
 	for _, r := range input {
-		if inDoubleQuote {
-			if escapeNext {
-				if r == '\\' || r == '"' || r == '$' {
+		if escapeNext {
+			if inDoubleQuote {
+				switch r {
+				case '\\', '"', '$':
 					currentToken = append(currentToken, r)
-				} else if r == '\n' {
-					// Do nothing
-				} else {
+				case '\n':
+					// Line continuation, do nothing
+				default:
 					currentToken = append(currentToken, '\\')
 					currentToken = append(currentToken, r)
 				}
-				escapeNext = false
 			} else {
-				if r == '\\' {
-					escapeNext = true
-				} else if r == '"' {
-					inDoubleQuote = false
-				} else {
+				if r != '\n' {
 					currentToken = append(currentToken, r)
 				}
+			}
+			escapeNext = false
+			continue
+		}
+
+		if inDoubleQuote {
+			switch r {
+			case '\\':
+				escapeNext = true
+			case '"':
+				inDoubleQuote = false
+			default:
+				currentToken = append(currentToken, r)
 			}
 		} else if inSingleQuote {
 			if r == '\'' {
@@ -171,23 +180,28 @@ func tokenize(input string) []string {
 				currentToken = append(currentToken, r)
 			}
 		} else {
-			if r == '\'' {
+			switch r {
+			case '\'':
 				inSingleQuote = true
-			} else if r == '\\' {
-				tokens = append(tokens, string(currentToken))
-				currentToken = nil
-				escapeNext = true
-			} else if r == '"' {
+			case '"':
 				inDoubleQuote = true
-			} else if unicode.IsSpace(r) {
-				if len(currentToken) > 0 {
-					tokens = append(tokens, string(currentToken))
-					currentToken = nil
+			case '\\':
+				escapeNext = true
+			default:
+				if unicode.IsSpace(r) {
+					if len(currentToken) > 0 {
+						tokens = append(tokens, string(currentToken))
+						currentToken = nil
+					}
+				} else {
+					currentToken = append(currentToken, r)
 				}
-			} else {
-				currentToken = append(currentToken, r)
 			}
 		}
+	}
+
+	if escapeNext {
+		currentToken = append(currentToken, '\\')
 	}
 
 	if len(currentToken) > 0 {
