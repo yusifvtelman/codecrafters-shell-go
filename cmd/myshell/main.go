@@ -139,10 +139,32 @@ func main() {
 func tokenize(input string) []string {
 	var tokens []string
 	var currentToken []rune
+	inDoubleQuote := false
 	inSingleQuote := false
+	escapeNext := false
 
 	for _, r := range input {
-		if inSingleQuote {
+		if inDoubleQuote {
+			if escapeNext {
+				if r == '\\' || r == '"' || r == '$' {
+					currentToken = append(currentToken, r)
+				} else if r == '\n' {
+					// Do nothing
+				} else {
+					currentToken = append(currentToken, '\\')
+					currentToken = append(currentToken, r)
+				}
+				escapeNext = false
+			} else {
+				if r == '\\' {
+					escapeNext = true
+				} else if r == '"' {
+					inDoubleQuote = false
+				} else {
+					currentToken = append(currentToken, r)
+				}
+			}
+		} else if inSingleQuote {
 			if r == '\'' {
 				inSingleQuote = false
 			} else {
@@ -151,6 +173,8 @@ func tokenize(input string) []string {
 		} else {
 			if r == '\'' {
 				inSingleQuote = true
+			} else if r == '"' {
+				inDoubleQuote = true
 			} else if unicode.IsSpace(r) {
 				if len(currentToken) > 0 {
 					tokens = append(tokens, string(currentToken))
