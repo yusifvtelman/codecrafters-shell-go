@@ -173,6 +173,8 @@ func tokenize(input string) []string {
 		} else {
 			if r == '\'' {
 				inSingleQuote = true
+			} else if r == '\\' {
+				escapeNext = true
 			} else if r == '"' {
 				inDoubleQuote = true
 			} else if unicode.IsSpace(r) {
