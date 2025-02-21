@@ -187,6 +187,15 @@ func tokenize(input string) []string {
 				inDoubleQuote = true
 			case '\\':
 				escapeNext = true
+			case '>':
+				// Redirects
+				if len(currentToken) > 0 {
+					tokens = append(tokens, string(currentToken))
+					currentToken = nil
+				}
+				tokens = append(tokens, ">")
+			case '<':
+				// Redirects
 			default:
 				if unicode.IsSpace(r) {
 					if len(currentToken) > 0 {
