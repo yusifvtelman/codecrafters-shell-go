@@ -29,15 +29,41 @@ func main() {
 			continue
 		}
 
-		cmdName := tokens[0]
-		args := tokens[1:]
+		// Process redirection and extract command arguments
+		var args []string
+		var outputFile string
+		syntaxError := false
 
+		for i := 0; i < len(tokens); {
+			token := tokens[i]
+			if token == ">" || token == "1>" {
+				if i+1 >= len(tokens) {
+					fmt.Fprintln(os.Stderr, "Syntax error: no filename provided for redirection.")
+					syntaxError = true
+					break
+				}
+				outputFile = tokens[i+1]
+				i += 2 // Skip operator and filename
+			} else {
+				args = append(args, token)
+				i++
+			}
+		}
+
+		if syntaxError || len(args) == 0 {
+			continue
+		}
+
+		cmdName := args[0]
+		cmdArgs := args[1:]
+
+		// Handle built-in commands
 		if cmdName == "exit" {
 			exitCode := 0
-			if len(args) > 0 {
-				_, err := fmt.Sscanf(args[0], "%d", &exitCode)
+			if len(cmdArgs) > 0 {
+				_, err := fmt.Sscanf(cmdArgs[0], "%d", &exitCode)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "exit: %s: numeric argument required\n", args[0])
+					fmt.Fprintf(os.Stderr, "exit: %s: numeric argument required\n", cmdArgs[0])
 					exitCode = 1
 				}
 			}
@@ -45,89 +71,82 @@ func main() {
 		}
 
 		if cmdName == "echo" {
-			fmt.Println(strings.Join(args, " "))
+			fmt.Println(strings.Join(cmdArgs, " "))
 			continue
 		}
 
 		if cmdName == "type" {
-			if len(args) == 0 {
+			if len(cmdArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "type: missing argument")
 				continue
 			}
 
-			if builtinMap[args[0]] {
-				fmt.Println(args[0], "is a shell builtin")
-				continue
+			target := cmdArgs[0]
+			if builtinMap[target] {
+				fmt.Printf("%s is a shell builtin\n", target)
+			} else if path, err := exec.LookPath(target); err == nil {
+				fmt.Printf("%s is %s\n", target, path)
+			} else {
+				fmt.Printf("%s not found\n", target)
 			}
-
-			path, err := exec.LookPath(args[0])
-			if err == nil {
-				fmt.Printf("%s is %s\n", args[0], path)
-				continue
-			}
-
-			fmt.Printf("%s not found\n", args[0])
 			continue
 		}
 
 		if cmdName == "pwd" {
-			dir, err := os.Getwd()
-			if err != nil {
-				fmt.Println(err)
+			if dir, err := os.Getwd(); err == nil {
+				fmt.Println(dir)
 			}
-			fmt.Println(dir)
 			continue
 		}
 
 		if cmdName == "cd" {
-			if len(args) == 0 {
+			if len(cmdArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "cd: missing argument")
 				continue
 			}
 
-			dir := args[0]
+			dir := cmdArgs[0]
 			if strings.HasPrefix(dir, "~/") {
-				home, err := os.UserHomeDir()
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "cd:", err)
-					continue
+				if home, err := os.UserHomeDir(); err == nil {
+					dir = home + dir[1:]
 				}
-				dir = home + dir[1:]
 			} else if dir == "~" {
-				home, err := os.UserHomeDir()
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "cd:", err)
-					continue
+				if home, err := os.UserHomeDir(); err == nil {
+					dir = home
 				}
-				dir = home
 			}
 
-			err := os.Chdir(dir)
-			if err != nil {
-				if os.IsNotExist(err) {
-					fmt.Fprintf(os.Stderr, "cd: %s: No such file or directory\n", args[0])
-				} else {
-					fmt.Fprintf(os.Stderr, "cd: %s: %v\n", args[0], err)
-				}
+			if err := os.Chdir(dir); err != nil {
+				fmt.Fprintf(os.Stderr, "cd: %s: %v\n", dir, err)
 			}
 			continue
 		}
 
+		// Handle external commands with redirection
 		path, err := exec.LookPath(cmdName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: command not found\n", cmdName)
 			continue
 		}
 
-		cmd := exec.Command(path, args...)
-		cmd.Args[0] = cmdName
+		cmd := exec.Command(path, cmdArgs...)
 		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
-		err = cmd.Run()
+		// Handle output redirection
+		if outputFile != "" {
+			file, err := os.Create(outputFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error creating file: %v\n", err)
+				continue
+			}
+			defer file.Close()
+			cmd.Stdout = file
+		} else {
+			cmd.Stdout = os.Stdout
+		}
 
-		if err != nil {
+		if err := cmd.Run(); err != nil {
 			if exitErr, ok := err.(*exec.ExitError); ok {
 				os.Exit(exitErr.ExitCode())
 			}
@@ -143,23 +162,9 @@ func tokenize(input string) []string {
 	inSingleQuote := false
 	escapeNext := false
 
-	for _, r := range input {
+	for i, r := range input {
 		if escapeNext {
-			if inDoubleQuote {
-				switch r {
-				case '\\', '"', '$':
-					currentToken = append(currentToken, r)
-				case '\n':
-					// Line continuation, do nothing
-				default:
-					currentToken = append(currentToken, '\\')
-					currentToken = append(currentToken, r)
-				}
-			} else {
-				if r != '\n' {
-					currentToken = append(currentToken, r)
-				}
-			}
+			currentToken = append(currentToken, r)
 			escapeNext = false
 			continue
 		}
@@ -173,44 +178,52 @@ func tokenize(input string) []string {
 			default:
 				currentToken = append(currentToken, r)
 			}
-		} else if inSingleQuote {
+			continue
+		}
+
+		if inSingleQuote {
 			if r == '\'' {
 				inSingleQuote = false
 			} else {
 				currentToken = append(currentToken, r)
 			}
-		} else {
-			switch r {
-			case '\'':
-				inSingleQuote = true
-			case '"':
-				inDoubleQuote = true
-			case '\\':
-				escapeNext = true
-			case '>':
-				// Redirects
+			continue
+		}
+
+		switch r {
+		case '\\':
+			escapeNext = true
+		case '\'':
+			inSingleQuote = true
+		case '"':
+			inDoubleQuote = true
+		case '>':
+			if len(currentToken) > 0 {
+				tokens = append(tokens, string(currentToken))
+				currentToken = nil
+			}
+			tokens = append(tokens, ">")
+		case '1':
+			if i+1 < len(input) && input[i+1] == '>' {
 				if len(currentToken) > 0 {
 					tokens = append(tokens, string(currentToken))
 					currentToken = nil
 				}
-				tokens = append(tokens, ">")
-			case '<':
-				// Redirects
-			default:
-				if unicode.IsSpace(r) {
-					if len(currentToken) > 0 {
-						tokens = append(tokens, string(currentToken))
-						currentToken = nil
-					}
-				} else {
-					currentToken = append(currentToken, r)
+				tokens = append(tokens, "1>")
+				i++ // Skip next character
+				continue
+			}
+			currentToken = append(currentToken, r)
+		default:
+			if unicode.IsSpace(r) {
+				if len(currentToken) > 0 {
+					tokens = append(tokens, string(currentToken))
+					currentToken = nil
 				}
+			} else {
+				currentToken = append(currentToken, r)
 			}
 		}
-	}
-
-	if escapeNext {
-		currentToken = append(currentToken, '\\')
 	}
 
 	if len(currentToken) > 0 {
