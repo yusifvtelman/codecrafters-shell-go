@@ -57,8 +57,9 @@ func main() {
 		cmdName := args[0]
 		cmdArgs := args[1:]
 
-		// Handle built-in commands
-		if cmdName == "exit" {
+		// Handle built-in commands with redirection
+		switch cmdName {
+		case "exit":
 			exitCode := 0
 			if len(cmdArgs) > 0 {
 				_, err := fmt.Sscanf(cmdArgs[0], "%d", &exitCode)
@@ -68,43 +69,71 @@ func main() {
 				}
 			}
 			os.Exit(exitCode)
-		}
-
-		if cmdName == "echo" {
-			fmt.Println(strings.Join(cmdArgs, " "))
+		case "echo":
+			if outputFile != "" {
+				file, err := os.Create(outputFile)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error creating file: %v\n", err)
+					continue
+				}
+				fmt.Fprintln(file, strings.Join(cmdArgs, " "))
+				file.Close()
+			} else {
+				fmt.Println(strings.Join(cmdArgs, " "))
+			}
 			continue
-		}
-
-		if cmdName == "type" {
+		case "type":
 			if len(cmdArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "type: missing argument")
 				continue
 			}
-
 			target := cmdArgs[0]
-			if builtinMap[target] {
-				fmt.Printf("%s is a shell builtin\n", target)
-			} else if path, err := exec.LookPath(target); err == nil {
-				fmt.Printf("%s is %s\n", target, path)
+			if outputFile != "" {
+				file, err := os.Create(outputFile)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error creating file: %v\n", err)
+					continue
+				}
+				if builtinMap[target] {
+					fmt.Fprintf(file, "%s is a shell builtin\n", target)
+				} else if path, err := exec.LookPath(target); err == nil {
+					fmt.Fprintf(file, "%s is %s\n", target, path)
+				} else {
+					fmt.Fprintf(file, "%s not found\n", target)
+				}
+				file.Close()
 			} else {
-				fmt.Printf("%s not found\n", target)
+				if builtinMap[target] {
+					fmt.Printf("%s is a shell builtin\n", target)
+				} else if path, err := exec.LookPath(target); err == nil {
+					fmt.Printf("%s is %s\n", target, path)
+				} else {
+					fmt.Printf("%s not found\n", target)
+				}
 			}
 			continue
-		}
-
-		if cmdName == "pwd" {
-			if dir, err := os.Getwd(); err == nil {
-				fmt.Println(dir)
+		case "pwd":
+			if outputFile != "" {
+				file, err := os.Create(outputFile)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error creating file: %v\n", err)
+					continue
+				}
+				if dir, err := os.Getwd(); err == nil {
+					fmt.Fprintln(file, dir)
+				}
+				file.Close()
+			} else {
+				if dir, err := os.Getwd(); err == nil {
+					fmt.Println(dir)
+				}
 			}
 			continue
-		}
-
-		if cmdName == "cd" {
+		case "cd":
 			if len(cmdArgs) == 0 {
 				fmt.Fprintln(os.Stderr, "cd: missing argument")
 				continue
 			}
-
 			dir := cmdArgs[0]
 			if strings.HasPrefix(dir, "~/") {
 				if home, err := os.UserHomeDir(); err == nil {
@@ -115,7 +144,6 @@ func main() {
 					dir = home
 				}
 			}
-
 			if err := os.Chdir(dir); err != nil {
 				fmt.Fprintf(os.Stderr, "cd: %s: %v\n", dir, err)
 			}
@@ -133,7 +161,6 @@ func main() {
 		cmd.Stdin = os.Stdin
 		cmd.Stderr = os.Stderr
 
-		// Handle output redirection
 		if outputFile != "" {
 			file, err := os.Create(outputFile)
 			if err != nil {
@@ -162,7 +189,6 @@ func tokenize(input string) []string {
 	inSingleQuote := false
 	escapeNext := false
 
-	// Use an indexed loop for precise control over position.
 	for i := 0; i < len(input); i++ {
 		c := rune(input[i])
 
@@ -172,7 +198,6 @@ func tokenize(input string) []string {
 			continue
 		}
 
-		// Inside double quotes
 		if inDoubleQuote {
 			if c == '\\' {
 				escapeNext = true
@@ -184,7 +209,6 @@ func tokenize(input string) []string {
 			continue
 		}
 
-		// Inside single quotes
 		if inSingleQuote {
 			if c == '\'' {
 				inSingleQuote = false
@@ -194,7 +218,7 @@ func tokenize(input string) []string {
 			continue
 		}
 
-		// Check for "1>" operator first.
+		// Check for "1>" operator.
 		if c == '1' && i+1 < len(input) && input[i+1] == '>' {
 			if len(currentToken) > 0 {
 				tokens = append(tokens, string(currentToken))
@@ -205,7 +229,6 @@ func tokenize(input string) []string {
 			continue
 		}
 
-		// Check for ">" operator.
 		if c == '>' {
 			if len(currentToken) > 0 {
 				tokens = append(tokens, string(currentToken))
@@ -215,25 +238,21 @@ func tokenize(input string) []string {
 			continue
 		}
 
-		// Handle escape character.
 		if c == '\\' {
 			escapeNext = true
 			continue
 		}
 
-		// Start or end double quotes.
 		if c == '"' {
 			inDoubleQuote = true
 			continue
 		}
 
-		// Start or end single quotes.
 		if c == '\'' {
 			inSingleQuote = true
 			continue
 		}
 
-		// Treat whitespace as token separator.
 		if unicode.IsSpace(c) {
 			if len(currentToken) > 0 {
 				tokens = append(tokens, string(currentToken))
