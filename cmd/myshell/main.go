@@ -162,68 +162,87 @@ func tokenize(input string) []string {
 	inSingleQuote := false
 	escapeNext := false
 
-	for i, r := range input {
+	// Use an indexed loop for precise control over position.
+	for i := 0; i < len(input); i++ {
+		c := rune(input[i])
+
 		if escapeNext {
-			currentToken = append(currentToken, r)
+			currentToken = append(currentToken, c)
 			escapeNext = false
 			continue
 		}
 
+		// Inside double quotes
 		if inDoubleQuote {
-			switch r {
-			case '\\':
+			if c == '\\' {
 				escapeNext = true
-			case '"':
+			} else if c == '"' {
 				inDoubleQuote = false
-			default:
-				currentToken = append(currentToken, r)
+			} else {
+				currentToken = append(currentToken, c)
 			}
 			continue
 		}
 
+		// Inside single quotes
 		if inSingleQuote {
-			if r == '\'' {
+			if c == '\'' {
 				inSingleQuote = false
 			} else {
-				currentToken = append(currentToken, r)
+				currentToken = append(currentToken, c)
 			}
 			continue
 		}
 
-		switch r {
-		case '\\':
-			escapeNext = true
-		case '\'':
-			inSingleQuote = true
-		case '"':
-			inDoubleQuote = true
-		case '>':
+		// Check for "1>" operator first.
+		if c == '1' && i+1 < len(input) && input[i+1] == '>' {
+			if len(currentToken) > 0 {
+				tokens = append(tokens, string(currentToken))
+				currentToken = nil
+			}
+			tokens = append(tokens, "1>")
+			i++ // Skip the '>' character.
+			continue
+		}
+
+		// Check for ">" operator.
+		if c == '>' {
 			if len(currentToken) > 0 {
 				tokens = append(tokens, string(currentToken))
 				currentToken = nil
 			}
 			tokens = append(tokens, ">")
-		case '1':
-			if i+1 < len(input) && input[i+1] == '>' {
-				if len(currentToken) > 0 {
-					tokens = append(tokens, string(currentToken))
-					currentToken = nil
-				}
-				tokens = append(tokens, "1>")
-				i++ // Skip next character
-				continue
-			}
-			currentToken = append(currentToken, r)
-		default:
-			if unicode.IsSpace(r) {
-				if len(currentToken) > 0 {
-					tokens = append(tokens, string(currentToken))
-					currentToken = nil
-				}
-			} else {
-				currentToken = append(currentToken, r)
-			}
+			continue
 		}
+
+		// Handle escape character.
+		if c == '\\' {
+			escapeNext = true
+			continue
+		}
+
+		// Start or end double quotes.
+		if c == '"' {
+			inDoubleQuote = true
+			continue
+		}
+
+		// Start or end single quotes.
+		if c == '\'' {
+			inSingleQuote = true
+			continue
+		}
+
+		// Treat whitespace as token separator.
+		if unicode.IsSpace(c) {
+			if len(currentToken) > 0 {
+				tokens = append(tokens, string(currentToken))
+				currentToken = nil
+			}
+			continue
+		}
+
+		currentToken = append(currentToken, c)
 	}
 
 	if len(currentToken) > 0 {
