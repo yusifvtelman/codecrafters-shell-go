@@ -210,10 +210,7 @@ func main() {
 		} else {
 			cmd.Stdout = os.Stdout
 			if err := cmd.Run(); err != nil {
-				if exitErr, ok := err.(*exec.ExitError); ok {
-					os.Exit(exitErr.ExitCode())
-				}
-				os.Exit(1)
+				continue
 			}
 		}
 	}
