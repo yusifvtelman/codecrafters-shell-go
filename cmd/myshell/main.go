@@ -201,15 +201,14 @@ func main() {
 			cmd.Stdout = file
 			if err := cmd.Run(); err != nil {
 				file.Close()
-				if exitErr, ok := err.(*exec.ExitError); ok {
-					os.Exit(exitErr.ExitCode())
-				}
-				os.Exit(1)
+				// Instead of exiting, just continue the loop
+				continue
 			}
 			file.Close()
 		} else {
 			cmd.Stdout = os.Stdout
 			if err := cmd.Run(); err != nil {
+				// Instead of exiting, just continue the loop
 				continue
 			}
 		}
